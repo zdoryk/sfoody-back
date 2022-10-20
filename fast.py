@@ -84,6 +84,31 @@ class UserReceiptPost(BaseModel):
     products: List[Product]
 
 
+# def check_and_update_user_products(new_receipt):
+#     new_products = new_receipt['products']
+#     user_products_document = products.find_one({"user_id": new_receipt['user_id']})
+#     print(user_products_document)
+#     user_products = user_products_document['products']
+#     user_products_lower = [x.lower() for x in user_products]
+#
+#     new_products = [x.capitalize() for x in new_products if x.lower() not in user_products_lower]
+#     new_products_with_categories = []
+#
+#     for i in new_products:
+#         new_products_with_categories.append(
+#             {
+#                 "product_name": i,
+#                 "category": "Other"
+#             }
+#         )
+#
+#     user_products.extend(new_products_with_categories)
+#     user_products_document['products'] = user_products
+#     print(user_products_document)
+#
+#     return user_products_document
+
+
 @app.post("/receipts/post_user_receipt")
 async def post_user_products(receipt: UserReceiptPost):
     new_receipt = receipt.dict()
@@ -92,13 +117,36 @@ async def post_user_products(receipt: UserReceiptPost):
         to_hash = (str(new_receipt['user_id']) + '-' + str(new_receipt['receipt_id']) + '-' + str(new_receipt['createdAt']))
         new_receipt['_id'] = ObjectId(hashlib.sha1(to_hash.encode("UTF-8")).hexdigest()[:24])
         try:
+            new_products = [x['product_name'].lower() for x in new_receipt['products']]
+            user_products_document = products.find_one({"user_id": new_receipt['user_id']})
+            user_products = user_products_document['products']
+            user_products_lower = [x['product_name'].lower() for x in user_products]
+
+            new_products = [x.capitalize() for x in new_products if x.lower() not in user_products_lower]
+            new_products_with_categories = []
+
+            for i in new_products:
+                new_products_with_categories.append(
+                    {
+                        "product_name": i,
+                        "category": "Other"
+                    }
+                )
+
+            user_products.extend(new_products_with_categories)
+            user_products_document['products'] = user_products
+
             receipts.insert_one(new_receipt)
-            return {"Status": "OK", "Comment": "New receipt has been created"}
+            products.find_one_and_replace({"user_id": new_receipt['user_id']}, user_products_document)
+
+            return {"Status": "OK", "Comment": f"New receipt has been created. Receipt_id: {user_products_document['products']}"}
+            # return {"Status": "OK", "Comment": f"New receipt has been created. Receipt_id: {new_receipt['receipt_id']}"}
         except Exception as e:
             return {"Status": "Error", "Comment": e}
     else:
         print('qwe')
         return {"Status": "Error", "Comment": "There is receipt with this receipt_id"}
+
 
 
 @app.put("/receipts/put_user_receipt")
@@ -112,6 +160,19 @@ async def put_user_products(receipt: UserReceipt):
                                                       {"createdAt": receipt.createdAt}]},
                                       replacement=json.loads(receipt.json()))
         return {"Status": "OK", "Comment": "Existing receipt has been updated"}
+
+
+class UserReceiptDelete(BaseModel):
+    user_id: int
+    receipt_id: int
+
+
+@app.delete("/receipts")
+async def delete_user_receipt(receipt: UserReceiptDelete):
+    if receipts.find_one_and_delete({"$and": [{"user_id": receipt.user_id}, {"receipt_id": receipt.receipt_id}]}) is not None:
+        return {"Status": "OK", "Comment": f"User's receipt {receipt.receipt_id} has been deleted"}
+    else:
+        return {"Status": "Error", "Comment": f"There is no receipt with: user_id: {receipt.user_id} receipt_id: {receipt.receipt_id}"}
 
 
 ###
