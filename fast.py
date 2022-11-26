@@ -382,6 +382,24 @@ async def post_new_user_category(new_category: NewCategoryRequest):
     except Exception as e:
         return {"answer": "Error", "comment": e}
 
+class NewProductRequest(BaseModel):
+    user_id: int
+    new_product_name: str
+    new_category_name: str
+
+@app.post("/products/post_new_user_product")
+async def post_new_user_product(new_product: NewProductRequest):
+    try:
+        # Verification about if there is a product with the same name and if the category name is written correctly is on
+        # Front end side
+        products.update_one(
+            {'user_id': new_product.user_id},
+            {'$push': {f'{new_product.new_category_name}.products': new_product.new_product_name.capitalize()}}
+        )
+        return {"answer": "New Product was created"}
+    except Exception as e:
+        return {"answer": "Error", "comment": e}
+
 
 @app.delete("/products/{user_id}")
 async def delete_all_user_products(user_id: int):
