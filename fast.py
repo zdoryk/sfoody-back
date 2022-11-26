@@ -360,6 +360,29 @@ async def post_user_products(user_products: UserProducts):
         return {"answer": "Error", "comment": e}
 
 
+class NewCategoryRequest(BaseModel):
+    user_id: int
+    new_category_name: str
+    new_icon_name: str
+    new_color_name: str
+
+
+@app.post("/products/post_new_user_category")
+async def post_new_user_category(new_category: NewCategoryRequest):
+    try:
+        old = products.find_one({'user_id': 1}, {"_id": False})
+
+        old[new_category.new_category_name] = {
+            'ico': new_category.new_icon_name,
+            'color': new_category.new_color_name,
+            'products': []
+        }
+        products.find_one_and_replace({'user_id': old['user_id']}, old)
+        return {"answer": "Created new category"}
+    except Exception as e:
+        return {"answer": "Error", "comment": e}
+
+
 @app.delete("/products/{user_id}")
 async def delete_all_user_products(user_id: int):
     if products.find_one_and_delete({"user_id": user_id}) is not None:
