@@ -1,8 +1,8 @@
 import hashlib
-
 import pymongo.errors
 from bson import ObjectId
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request, HTTPException, status, Response, Header
+from fastapi.responses import HTMLResponse
 # import db as db_func
 import json
 from pydantic import BaseModel
@@ -10,7 +10,15 @@ from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient, DESCENDING, ReturnDocument
 import itertools
-
+import time
+from datetime import datetime, timedelta
+from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from env_variables import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_DAYS
+from dependencies import get_user, oauth2_scheme, pwd_context, User, get_current_user
+from auth import get_authorized
 
 client = MongoClient()
 db = client['Sfoody']
@@ -44,6 +52,107 @@ app.add_middleware(
 ###
 ##
 #
+##########  Default
+#
+##
+###
+
+@app.get("/", response_class=HTMLResponse)
+async def read_items():
+    return """
+    <html>
+        <head>
+            <title>Some HTML in here</title>
+        </head>
+        <body>
+            <h1>There is nothing here, to see api docs - please follow this link: <a href=http://localhost:8000/docs> 
+            docs</a></h1>
+        </body>
+    </html>
+    """
+
+
+###
+##
+#
+######### Token
+#
+##
+###
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def authenticate_user(email: str, password: str):
+    user = get_user(email)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(days=1)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
+    print(form_data)
+    # username here is our email, it's just called username cause of OAuth2 requirements for 'password flow'
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="authentication-cookie",
+        value=access_token,
+        httponly=True,
+        secure=False,
+    )
+    return response
+
+
+# @app.middleware("http")
+# async def is_authorized(request: Request, call_next):
+#     if get_current_active_user():
+#         response = await call_next(request)
+#         return response
+#     else:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Please login to make this request",
+#         )
+
+
+###
+##
+#
 ##########  Receipts
 #
 ##
@@ -71,7 +180,7 @@ async def get_receipts_of_all_users():
         return e
 
 
-@app.get("/receipts/{user_id}")
+@app.get("/receipts/{user_id}", dependencies=[Depends(get_authorized)])
 async def get_users_receipts(user_id: int):
     try:
         return list(receipts.find({"user_id": user_id}, {'_id': False}))
@@ -119,9 +228,11 @@ async def post_user_products(receipt: UserReceiptPost):
     # Check if there is receipt with same user_id and createdAt parameters
     if receipts.find_one({"$and": [{"user_id": receipt.user_id}, {"createdAt": receipt.createdAt}]}) is None:
         # Get last receipt_id for user with this user_id
-        new_receipt['receipt_id'] = list(receipts.find({'user_id': receipt.user_id}, sort=[("receipt_id", -1)], limit=1))[0]['receipt_id'] + 1
+        new_receipt['receipt_id'] = \
+        list(receipts.find({'user_id': receipt.user_id}, sort=[("receipt_id", -1)], limit=1))[0]['receipt_id'] + 1
         # Generate '_id'
-        to_hash = (str(new_receipt['user_id']) + '-' + str(new_receipt['receipt_id']) + '-' + str(new_receipt['createdAt']))
+        to_hash = (str(new_receipt['user_id']) + '-' + str(new_receipt['receipt_id']) + '-' + str(
+            new_receipt['createdAt']))
         new_receipt['_id'] = ObjectId(hashlib.sha1(to_hash.encode("UTF-8")).hexdigest()[:24])
         try:
             print(new_receipt)
@@ -135,7 +246,8 @@ async def post_user_products(receipt: UserReceiptPost):
             # Delete suer_id from old document
             user_products_document.pop('user_id')
             # Get all products from document
-            user_products = list(itertools.chain.from_iterable([x['products'] for x in user_products_document.values()]))
+            user_products = list(
+                itertools.chain.from_iterable([x['products'] for x in user_products_document.values()]))
             user_products_lower = [y.lower() for y in user_products]
             # Check if there are any products that aren't currently in our db
             new_products = [x.capitalize() for x in new_products if x.lower() not in user_products_lower]
@@ -163,16 +275,15 @@ async def post_user_products(receipt: UserReceiptPost):
         return {"Status": "Error", "Comment": "There is receipt with this receipt_id"}
 
 
-
 @app.put("/receipts/put_user_receipt")
 async def put_user_products(receipt: UserReceipt):
     if receipts.find_one({"$and": [{"user_id": receipt.user_id}, {"receipt_id": receipt.receipt_id},
-                                                      {"createdAt": receipt.createdAt}]}) is None:
+                                   {"createdAt": receipt.createdAt}]}) is None:
         receipts.insert_one(json.loads(receipt.json()))
         return {"Status": "OK", "Comment": "New receipt has been created"}
     else:
         receipts.find_one_and_replace(filter={"$and": [{"user_id": receipt.user_id}, {"receipt_id": receipt.receipt_id},
-                                                      {"createdAt": receipt.createdAt}]},
+                                                       {"createdAt": receipt.createdAt}]},
                                       replacement=json.loads(receipt.json()))
         return {"Status": "OK", "Comment": "Existing receipt has been updated"}
 
@@ -213,6 +324,7 @@ async def delete_user_receipt(receipt: UserReceiptDelete):
 class UserProduct(BaseModel):
     product_name: str
 
+
 # class UserCategory(BaseModel):
 #     category_name: str
 #     color: str
@@ -224,6 +336,7 @@ class UserCategory(BaseModel):
     color: str
     ico: str
     products: List[UserProduct]
+
 
 # class UserProducts(BaseModel):
 #     user_id: int
@@ -299,7 +412,7 @@ async def put_user_products(replacement: UserReplaceCategory):
         products.find_one_and_replace({"user_id": replacement.user_id}, old_doc)
         return {"status": '200 OK'}
     else:
-        return {"Error": f'There is no record with this user_id: {replacement.user_id }'}
+        return {"Error": f'There is no record with this user_id: {replacement.user_id}'}
     # except Exception as e:
     #     return {e}
 
@@ -344,7 +457,7 @@ async def put_user_products(replacement: UpdateUserProduct):
 
         return {"status": '200 OK'}
     else:
-        return {"Error": f'There is no record with this user_id: {replacement.user_id }'}
+        return {"Error": f'There is no record with this user_id: {replacement.user_id}'}
     # except Exception as e:
     #     return {e}
 
@@ -382,10 +495,12 @@ async def post_new_user_category(new_category: NewCategoryRequest):
     except Exception as e:
         return {"answer": "Error", "comment": e}
 
+
 class NewProductRequest(BaseModel):
     user_id: int
     new_product_name: str
     new_category_name: str
+
 
 @app.post("/products/post_new_user_product")
 async def post_new_user_product(new_product: NewProductRequest):
