@@ -3,13 +3,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from routers import products, token, receipts
+from routers import products, token, receipts, custom
 
 app = FastAPI()
 
 app.include_router(token.router)
 app.include_router(products.router)
 app.include_router(receipts.router)
+app.include_router(custom.router)
 # app.include_router(
 #     admin.router,
 #     prefix="/admin",

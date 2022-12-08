@@ -17,7 +17,7 @@ client = MongoClient()
 db = client['Sfoody']
 
 receipts = db['Receipts']
-products = db['TEST']
+products = db['Products']
 
 router = APIRouter(
     prefix="/receipts",

@@ -9,13 +9,14 @@ from pymongo import MongoClient
 
 from env_variables import pwd_context, ACCESS_TOKEN_EXPIRE_DAYS, ALGORITHM, SECRET_KEY
 from auth import get_authorized
-from schema import Token, User, UserInDB
+from schema import Token, User, UserInDB, NewUser
 
 
 client = MongoClient()
 db = client['Sfoody']
 
 users = db['USERS']
+products = db['Products']
 
 router = APIRouter(
     prefix="/token",
@@ -96,4 +97,64 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
         secure=False,
     )
     return response
+
+
+@router.post("/register")
+async def register_new_user(new_user: NewUser):
+    # list(users.find(sort=[("receipt_id", -1)], limit=1))[0]['user_id'] + 1
+    users_db = list(users.find({},{"_id": False}))
+    if new_user.email not in [x['email'] for x in users_db]:
+        user_id = max(users_db, key=lambda x: x['user_id'])['user_id'] + 1
+        users.insert_one({
+            "user_id": user_id,
+            "email": new_user.email,
+            "disabled": False,
+            "hashed_password": pwd_context.hash(new_user.password)
+        })
+        products.insert_one({
+            "user_id": user_id,
+            "Fruits": {
+                "ico": "apple",
+                "color": "#FF7043",
+                "products": [
+                ]
+            },
+            "Meat": {
+                "ico": "drumstick",
+                "color": "#FF5252",
+                "products": [
+                ]
+            },
+            "Drinks": {
+                "ico": "drinks",
+                "color": "#536DFE",
+                "products": [
+                ]
+            },
+            "Semi-finished products": {
+                "ico": "pizza",
+                "color": "#B388FF",
+                "products": [
+                ]
+            },
+            "Snacks": {
+                "ico": "candy",
+                "color": "#FFA726",
+                "products": [
+                ]
+            },
+            "Other": {
+                "ico": "questionCircle",
+                "color": "#656b69",
+                "products": [
+                ]
+            },
+            "Fish": {
+                "ico": "fish",
+                "color": "#F178B6",
+                "products": [
+                ]
+            },
+        })
+        return 'OK'
 

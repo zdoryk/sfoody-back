@@ -12,7 +12,7 @@ client = MongoClient()
 db = client['Sfoody']
 
 receipts = db['Receipts']
-products = db['TEST']
+products = db['Products']
 
 router = APIRouter(
     prefix="/products",
@@ -99,12 +99,14 @@ async def put_user_products(replacement: UpdateUserProduct):
     data = replacement.dict()
     if products.find_one({"user_id": replacement.user_id}) is not None:
         old_doc = products.find_one({"user_id": replacement.user_id}, {"_id": False})
+        print(old_doc)
         for i in range(len(old_doc[replacement.old_category]['products'])):
             if old_doc[replacement.old_category]['products'][i].lower() == replacement.old_product_name.lower():
-                old_doc[replacement.old_category]['products'][i] = replacement.new_product_name.capitalize()
-
+                old_doc[replacement.old_category]['products'][i] = replacement.new_product_name
+        print(replacement)
+        print(old_doc[replacement.old_category]['products'])
         old_doc[replacement.old_category]['products'].remove(replacement.new_product_name)
-        old_doc[replacement.new_category]['products'].routerend(replacement.new_product_name)
+        old_doc[replacement.new_category]['products'].append(replacement.new_product_name.capitalize())
 
         print(products.find_one_and_replace({"user_id": replacement.user_id}, old_doc))
 
