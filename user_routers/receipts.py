@@ -11,10 +11,12 @@ import itertools
 
 from auth import get_authorized
 from schema import UserReceipt
+from env_variables import MONGO_LOGIN, MONGO_PASS
 
 
-client = MongoClient()
-db = client['Sfoody']
+client = MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+# client = MongoClient()
+db = client['Sfoodie']
 
 receipts = db['Receipts']
 products = db['Products']
@@ -40,7 +42,7 @@ router = APIRouter(
 #     products: List[Product] | None = None
 
 
-@router.get("/")
+@router.get("/", tags=['admin'])
 async def get_receipts_of_all_users():
     try:
         return list(receipts.find({}, {'_id': False}))
@@ -149,3 +151,13 @@ async def delete_user_receipt(receipt: UserReceipt):
         return {"Status": "OK", "Comment": f"User's receipt {receipt.receipt_id} has been deleted"}
     except Exception as e:
         return {"Status": "Error", "Comment": e}
+
+
+# # Dev
+# @router.delete("/delete_last_receipt")
+# async def delete_last():
+#     try:
+#         receipt_id = receipts.find_one_and_delete({"receipt_id": list(receipts.find({}, sort=[("receipt_id", -1)], limit=1))[0]['receipt_id']})
+#         return {"Status": "OK", "Comment": f"User's receipt {receipt_id} has been deleted"}
+#     except Exception as e:
+#         return {"Status": "Error", "Comment": e}

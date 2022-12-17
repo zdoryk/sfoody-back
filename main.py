@@ -3,8 +3,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from routers import products, token, receipts, custom
-
+from user_routers import products, token, receipts, custom
+from admin_routers import admin_custom
 app = FastAPI()
 
 app.include_router(token.router)
@@ -36,7 +36,7 @@ async def root():
             <title>Some HTML in here</title>
         </head>
         <body>
-            <h1>There is nothing here, to see api docs - please follow this link: <a href=http://localhost:8000/docs> 
+            <h1>There is nothing here, to see api docs - please follow this link: <a href="http://10.9.179.156:8080/docs"> 
             docs</a></h1>
         </body>
     </html>

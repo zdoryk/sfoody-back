@@ -1,7 +1,8 @@
 import itertools
 from functools import reduce
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security
+
 import pymongo.errors
 import json
 from pydantic import BaseModel
@@ -10,9 +11,11 @@ from pymongo import MongoClient
 from auth import get_authorized
 from schema import UserProducts, NewCategoryRequest, UserReplaceCategory, UpdateUserProduct
 import pandas as pd
+from env_variables import MONGO_PASS, MONGO_LOGIN
 
-client = MongoClient()
-db = client['Sfoody']
+client = pymongo.MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+# client = MongoClient()
+db = client['Sfoodie']
 
 receipts = db['Receipts']
 products = db['Products']
@@ -20,12 +23,14 @@ products = db['Products']
 router = APIRouter(
     prefix="/custom",
     tags=["custom"],
-    dependencies=[Depends(get_authorized)],
+    # dependencies=[Depends(get_authorized)],
+    # dependencies=[Security(get_authorized, scopes=['admin'])],
     responses={404: {"description": "Not found"}},
 )
 
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", dependencies=[Security(get_authorized, scopes=['admin'])], tags=['admin'])
+# @router.get("/{user_id}", dependencies=[Depends(get_authorized)])
 async def get_all_user_data(user_id: int):
     if products.find_one({"user_id": user_id}) is not None:
         user_products = {"categories": products.find_one({"user_id": user_id}, {"_id": False})}
@@ -43,7 +48,7 @@ async def get_all_user_data(user_id: int):
         return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
 
 
-@router.get("/tree_map_chart/{user_id}")
+@router.get("/tree_map_chart/{user_id}", dependencies=[Depends(get_authorized)])
 async def tree_map_data(user_id: int):
     receipts_all = list(receipts.find({"user_id": user_id}, {"_id": False}))
     # print(pd.DataFrame(receipts_all))
@@ -67,5 +72,5 @@ async def tree_map_data(user_id: int):
             data.append({'name': category, 'data': temp_data})
             colors.append(value['color'])
 
-    return {'tree_map_data': data, 'colors': colors, 'categories_aggregated': {'data': category_summary}    }
+    return {'tree_map_data': data, 'colors': colors, 'categories_aggregated': {'data': category_summary}}
     # return category_summary

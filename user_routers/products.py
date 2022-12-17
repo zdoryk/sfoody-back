@@ -6,10 +6,12 @@ from typing import List
 from pymongo import MongoClient
 from auth import get_authorized
 from schema import UserProducts, NewCategoryRequest, UserReplaceCategory, UpdateUserProduct
+from env_variables import MONGO_LOGIN, MONGO_PASS, oauth2_scheme
 
 
-client = MongoClient()
-db = client['Sfoody']
+client = pymongo.MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+# client = MongoClient()
+db = client['Sfoodie']
 
 receipts = db['Receipts']
 products = db['Products']
@@ -37,8 +39,8 @@ router = APIRouter(
 #     user_id: int
 #     categories: List[UserCategory]
 
-
-@router.get("/")
+# *** Only for admin
+@router.get("/", tags=['admin'])
 async def get_products_of_all_users():
     return list(products.find({}, {'_id': False}))
 
@@ -64,8 +66,6 @@ async def put_user_products(user_products: UserProducts):
                                       replacement=new_dict)
         return {"answer": "Updated existing record"}
     else:
-        # new_user_id = products.find_one(sort=[("user_id", DESCENDING)]).get("user_id") + 1
-        # user_products.user_id = new_user_id
         products.insert_one(new_dict)
         return {"answer": "Created new record"}
 
@@ -133,7 +133,7 @@ async def post_user_products(user_products: UserProducts):
 @router.post("/post_new_user_category")
 async def post_new_user_category(new_category: NewCategoryRequest):
     try:
-        old = products.find_one({'user_id': 1}, {"_id": False})
+        old = products.find_one({'user_id': new_category.user_id}, {"_id": False})
 
         old[new_category.category_name] = {
             'ico': new_category.ico,

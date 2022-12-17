@@ -20,6 +20,7 @@ class NewUser(BaseModel):
 
 class UserInDB(User):
     hashed_password: str
+    role: str
 
 
 # Receipts
