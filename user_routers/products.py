@@ -109,8 +109,14 @@ async def put_user_products(replacement: UpdateUserProduct):
         old_doc[replacement.new_category]['products'].append(replacement.new_product_name.capitalize())
 
         print(products.find_one_and_replace({"user_id": replacement.user_id}, old_doc))
-
-        return {"status": '200 OK'}
+        if replacement.new_product_name != replacement.old_product_name:
+            result = receipts.update_many(
+                {"user_id": replacement.user_id, "products.product_name": f"{replacement.old_product_name}"},
+                {"$set": {"products.$.product_name": f"{replacement.new_product_name}"}}
+            )
+            print(f"{result.modified_count} receipts were modified")
+            return {f"{result.modified_count} receipts were modified"}
+        return {"OK"}
     else:
         return {"Error": f'There is no record with this user_id: {replacement.user_id}'}
 
