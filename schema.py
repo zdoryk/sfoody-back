@@ -63,10 +63,17 @@ class NewCategoryRequest(UserCategory):
 
 class UserReplaceCategory(BaseModel):
     user_id: int
+    old_category_name: str
+    new_category_name: str
+    # old_category_ico: str
+    new_category_ico: str
+    # old_category_color: str
+    new_category_color: str
+
+
+class UpdateUserProduct(BaseModel):
+    user_id: int
     old_category: str
     new_category: str
     new_product_name: str
-
-
-class UpdateUserProduct(UserReplaceCategory):
     old_product_name: str

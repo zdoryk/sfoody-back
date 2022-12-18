@@ -8,8 +8,8 @@ from auth import get_authorized
 from schema import UserProducts, NewCategoryRequest, UserReplaceCategory, UpdateUserProduct
 from env_variables import MONGO_LOGIN, MONGO_PASS, oauth2_scheme
 
-
-client = pymongo.MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = pymongo.MongoClient(
+    f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
 # client = MongoClient()
 db = client['Sfoodie']
 
@@ -77,17 +77,39 @@ async def put_user_products(user_products: UserProducts):
 #     new_product_name: str
 
 
-@router.put("/replace_user_product_category")
-async def put_user_products(replacement: UserReplaceCategory):
-    if products.find_one({"user_id": replacement.user_id}) is not None:
-        old_doc = products.find_one({"user_id": replacement.user_id}, {"_id": False})
-        old_doc[replacement.old_category]['products'].remove(replacement.new_product_name)
-        old_doc[replacement.new_category]['products'].routerend(replacement.new_product_name)
-        print(old_doc)
-        products.find_one_and_replace({"user_id": replacement.user_id}, old_doc)
-        return {"status": '200 OK'}
-    else:
-        return {"Error": f'There is no record with this user_id: {replacement.user_id}'}
+@router.put("/update_user_product_category")
+async def put_user_category(replacement: UserReplaceCategory):
+    try:
+        # pipeline = [
+        #     {"$match": {"user_id": 1}},
+        #     {"$project": {"_id": 0, "Fruits": {"ico": 1, "color": 1}}}
+        # ]
+        # result = next(products.aggregate(pipeline))
+        # result[replacement.old_category_name]['ico'] = replacement.new_category_ico
+        # result[replacement.old_category_name]['color'] = replacement.new_category_color
+        # result[replacement.new_category_name] = result.pop(replacement.old_category_name)
+
+        result = products.update_one(
+            {"user_id": replacement.user_id, replacement.old_category_name: {"$exists": True}},
+            {
+                "$set": {
+                    replacement.new_category_name + ".color": replacement.new_category_color,
+                    replacement.new_category_name + ".ico": replacement.new_category_ico
+                }
+            }
+        )
+
+        if replacement.new_category_name != replacement.old_category_name:
+            result = products.update_one(
+                {"user_id": replacement.user_id},
+                {
+                    "$rename": {replacement.old_category_name: replacement.new_category_name},
+                }
+            )
+            return {f"{result.modified_count} records were updated, category_name was also modified"}
+        return {f"{result.modified_count} records were updated"}
+    except Exception as e:
+        return {"Error": f'{e} There is no record with this user_id: {replacement.user_id}'}
 
 
 # class UpdateUserProduct(UserReplaceCategory):
@@ -96,7 +118,7 @@ async def put_user_products(replacement: UserReplaceCategory):
 
 @router.put("/update_user_product")
 async def put_user_products(replacement: UpdateUserProduct):
-    data = replacement.dict()
+    # data = replacement.dict()
     if products.find_one({"user_id": replacement.user_id}) is not None:
         old_doc = products.find_one({"user_id": replacement.user_id}, {"_id": False})
         print(old_doc)
@@ -178,6 +200,5 @@ async def delete_all_user_products(user_id: int):
         return {"Status": "OK", "Comment": "Products have been deleted"}
     else:
         return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
-
 
 # TODO: Path operation "delete only one product" needed
