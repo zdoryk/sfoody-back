@@ -2,6 +2,22 @@ from pydantic import BaseModel
 from typing import List
 
 
+class UpdateEmail(BaseModel):
+    user_id: int
+    new_email: str
+
+
+class UpdatePassword(BaseModel):
+    user_id: int
+    old_password: str
+    new_password: str
+
+
+class UpdateCurrency(BaseModel):
+    user_id: int
+    new_currency: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str

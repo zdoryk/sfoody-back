@@ -50,7 +50,8 @@ async def get_authorized(security_scopes: SecurityScopes, request: Request,  tok
             raise credentials_exception
         if len(await request.body()) > 0:
             request_body = await request.json()
-        # If user tries to modify records of another user and user is not an admin
+            print(request_body)
+            # If user tries to modify records of another user and user is not an admin
             if user_id != request_body['user_id'] and token_scope == 'user':
                 credentials_exception.detail = 'You provided user_id of another user'
                 raise credentials_exception
