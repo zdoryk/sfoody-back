@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import uvicorn
 
 from user_routers import products, token, receipts, custom, account
 # from admin_routers import admin_custom
@@ -31,7 +32,7 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    return """
+    return f"""
     <html>
         <head>
             <title>Some HTML in here</title>

@@ -18,6 +18,25 @@ class UpdateCurrency(BaseModel):
     new_currency: str
 
 
+class ExportDataFormats(BaseModel):
+    xslx: bool | None = None # Temp
+    csv: bool
+    json_: bool
+
+
+class ExportDataCategories(BaseModel):
+    products: bool
+    all_receipts: bool
+
+
+class ExportData(BaseModel):
+    user_id: int
+    categories: ExportDataCategories
+    formats: ExportDataFormats
+
+
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -37,6 +56,7 @@ class NewUser(BaseModel):
 class UserInDB(User):
     hashed_password: str
     role: str
+    currency: str
 
 
 # Receipts

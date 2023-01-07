@@ -60,10 +60,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def generate_token(email: str, user_id: int, scope: str):
+def generate_token(email: str, user_id: int, scope: str, currency: str):
     access_token_expires = timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
-        data={"sub": email, 'user_id': user_id, "scope": scope}, expires_delta=access_token_expires
+        data={"sub": email, 'user_id': user_id, 'currency': currency, "scope": scope}, expires_delta=access_token_expires
     )
     return access_token
 
@@ -80,10 +80,25 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
         )
     # response = JSONResponse(content={"access_token": generate_token(email=user.email, user_id=user.user_id), "token_type": "bearer"})
     response = JSONResponse(content={"access_token": generate_token(email=user.email, user_id=user.user_id
-                                                                    , scope=user.role), "token_type": "bearer"})
+                                                                    , scope=user.role, currency=user.currency), "token_type": "bearer"})
     response.set_cookie(
         key="authentication-cookie",
-        value=generate_token(email=user.email, user_id=user.user_id, scope=user.role),
+        value=generate_token(email=user.email, user_id=user.user_id, scope=user.role, currency=user.currency),
+        httponly=True,
+        secure=False,
+    )
+    return response
+
+
+# @router.post("/", response_model=Token)
+async def update_token(email):
+    user = get_user(email)
+    response = JSONResponse(content={"access_token": generate_token(email=user.email, user_id=user.user_id
+                                                                    , scope=user.role, currency=user.currency),
+                                     "token_type": "bearer"})
+    response.set_cookie(
+        key="authentication-cookie",
+        value=generate_token(email=user.email, user_id=user.user_id, scope=user.role, currency=user.currency),
         httponly=True,
         secure=False,
     )
