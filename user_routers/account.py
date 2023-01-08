@@ -1,23 +1,17 @@
-import numpy as np
 from fastapi import APIRouter, Depends
 import pymongo.errors
-from openpyxl.workbook import Workbook
-
 from auth import get_authorized
-from schema import UpdateEmail, UpdatePassword, UpdateCurrency, ExportData
-from env_variables import MONGO_LOGIN, MONGO_PASS, pwd_context
+from schema import UpdateEmail, UpdatePassword, UpdateCurrency, ExportData, DeleteUser
+from env_variables import CLIENT, pwd_context
 import re
 from user_routers.token import update_token
 import pandas as pd
 from io import BytesIO
-from fastapi import  Response
+from fastapi import Response
 import json
 from datetime import datetime
 
-
-
-client = pymongo.MongoClient(
-    f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
 
@@ -99,17 +93,13 @@ async def put_user_currency(update_currency: UpdateCurrency):
         return e
 
 
-
-@router.delete("/deactivate_an_account")
-async def deactivate_an_account():
-    # TODO
-    pass
-
-
-
-
-
-
+@router.put("/deactivate_an_account")
+async def deactivate_an_account(user_id: DeleteUser):
+    print(user_id)
+    users.delete_one({"user_id": user_id.user_id})
+    products.delete_one({"user_id": user_id.user_id})
+    receipts.delete_many({"user_id": user_id.user_id})
+    return user_id
 
 
 def create_json_response(data: dict, name) -> Response:
@@ -140,19 +130,34 @@ def create_csv_response(data, name) -> Response:
     )
 
 
+def create_html_response(data, name) -> Response:
+    # html_buffer = BytesIO()
+    html_temp = data.to_html(index=False)
+
+    return Response(
+        content=bytes(html_temp, "utf-8"),
+        media_type='text/html',
+        headers={
+            'Content-Disposition': f'{name}.html'
+        }
+    )
+
 @router.post("/export_data")
 async def export_data(request: ExportData):
     result = {}
     response_data = []
     # excel_buffer = BytesIO()
     # writer = pd.ExcelWriter(excel_buffer, engine='xlsxwriter')
-
     if request.categories.products:
         result['products'] = products.find_one({'user_id': request.user_id}, {"_id": False})
         if request.formats.csv:
             df_products = pd.DataFrame(result.get('products'))
             csv_products_response = create_csv_response(df_products, 'products')
             response_data.append(csv_products_response)
+        if request.formats.html:
+            df_products = pd.DataFrame(result.get('products'))
+            html_products_response = create_html_response(df_products, 'products')
+            response_data.append(html_products_response)
         # if request.formats.xslx:
         #     df_products = pd.DataFrame(result.get('products'))
         #     # df_products = pd.DataFrame(json.loads(json.dumps(result.get('products')).encode('ISO-8859-1').strip()))
@@ -173,6 +178,10 @@ async def export_data(request: ExportData):
         # if request.formats.xslx:
         #     df_receipts = pd.DataFrame(result.get('receipts'))
         #     df_receipts.to_excel(writer, sheet_name='Receipts')
+        if request.formats.html:
+            df_receipts = pd.DataFrame(result.get('receipts'))
+            html_receipts_response = create_html_response(df_receipts, 'receipts')
+            response_data.append(html_receipts_response)
         if request.formats.json_:
             json_receipts_response = create_json_response(result.get('receipts'), 'receipts')
             response_data.append(json_receipts_response)

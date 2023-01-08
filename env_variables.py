@@ -1,5 +1,6 @@
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
+import pymongo
 
 SECRET_KEY = "6f46b11750f41a8687d98c4f8eef7fa556e813c4a3db1c583cf44b5922053fe8"
 ALGORITHM = "HS256"
@@ -8,8 +9,15 @@ ACCESS_TOKEN_EXPIRE_DAYS = 7
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
+
 MONGO_LOGIN = "HPFLY"
 MONGO_PASS = "a0504905922A"
+
+# CLIENT = pymongo.MongoClient(
+#     f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+
+CLIENT = pymongo.MongoClient()
+
 
 DEFAULT_USER_CATEGORIES = \
     {

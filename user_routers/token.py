@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from pymongo import MongoClient
 
-from env_variables import pwd_context, ACCESS_TOKEN_EXPIRE_DAYS, ALGORITHM, SECRET_KEY, MONGO_LOGIN, MONGO_PASS, DEFAULT_USER_CATEGORIES
+from env_variables import pwd_context, ACCESS_TOKEN_EXPIRE_DAYS, ALGORITHM, SECRET_KEY, CLIENT, DEFAULT_USER_CATEGORIES
 from auth import get_authorized
 from schema import Token, User, UserInDB, NewUser
 
 
-client = MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
 
@@ -118,6 +118,8 @@ async def register_new_user(form_data: OAuth2PasswordRequestForm = Depends()):
             "user_id": user_id,
             "email": email,
             "disabled": False,
+            "currency": "USD",
+            "role": "user",
             "hashed_password": pwd_context.hash(form_data.password)
         })
         new_products = {"user_id": user_id}
@@ -125,10 +127,10 @@ async def register_new_user(form_data: OAuth2PasswordRequestForm = Depends()):
         products.insert_one(new_products)
 
         response = JSONResponse(
-            content={"access_token": generate_token(email=email, user_id=user_id, scope='user'), "token_type": "bearer"})
+            content={"access_token": generate_token(email=email, user_id=user_id, scope='user', currency="USD"), "token_type": "bearer"})
         response.set_cookie(
             key="authentication-cookie",
-            value=generate_token(email=email, user_id=user_id),
+            value=generate_token(email=email, user_id=user_id,scope='user', currency="USD"),
             httponly=True,
             secure=False,
         )

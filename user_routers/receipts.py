@@ -11,10 +11,10 @@ import itertools
 
 from auth import get_authorized
 from schema import UserReceipt
-from env_variables import MONGO_LOGIN, MONGO_PASS
+from env_variables import CLIENT
 
 
-client = MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
 

@@ -3,7 +3,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-
 from user_routers import products, token, receipts, custom, account
 # from admin_routers import admin_custom
 app = FastAPI()
@@ -43,3 +42,7 @@ async def root():
         </body>
     </html>
     """
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="10.9.179.156", port=8080, reload=True)

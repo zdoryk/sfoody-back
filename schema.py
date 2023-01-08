@@ -20,6 +20,7 @@ class UpdateCurrency(BaseModel):
 
 class ExportDataFormats(BaseModel):
     xslx: bool | None = None # Temp
+    html: bool
     csv: bool
     json_: bool
 
@@ -35,6 +36,8 @@ class ExportData(BaseModel):
     formats: ExportDataFormats
 
 
+class DeleteUser(BaseModel):
+    user_id: int
 
 
 class Token(BaseModel):

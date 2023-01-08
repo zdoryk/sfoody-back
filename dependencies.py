@@ -5,9 +5,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from pymongo import MongoClient
-from env_variables import SECRET_KEY, ALGORITHM, MONGO_PASS, MONGO_LOGIN, oauth2_scheme
+from env_variables import SECRET_KEY, ALGORITHM, CLIENT, oauth2_scheme
 
-client = MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
 users = db['USERS']

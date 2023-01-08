@@ -11,9 +11,9 @@ from pymongo import MongoClient
 from auth import get_authorized
 from schema import UserProducts, NewCategoryRequest, UserReplaceCategory, UpdateUserProduct
 import pandas as pd
-from env_variables import MONGO_PASS, MONGO_LOGIN
+from env_variables import CLIENT
 
-client = pymongo.MongoClient(f"mongodb+srv://{MONGO_LOGIN}:{MONGO_PASS}@sfoodie.mexl1zk.mongodb.net/?retryWrites=true&w=majority")
+client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
 
