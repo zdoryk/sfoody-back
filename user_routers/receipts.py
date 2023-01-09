@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from typing import List
 
@@ -42,18 +42,18 @@ router = APIRouter(
 #     products: List[Product] | None = None
 
 
-@router.get("/", tags=['admin'])
-async def get_receipts_of_all_users():
-    try:
-        return list(receipts.find({}, {'_id': False}))
-    except Exception as e:
-        return e
-
-
 @router.get("/{user_id}")
 async def get_users_receipts(user_id: int):
     try:
         return list(receipts.find({"user_id": user_id}, {'_id': False}))
+    except Exception as e:
+        return e
+
+
+@router.get("/get_user_receipt/")
+async def get_user_receipt(user_id: int = Query(..., gt=0), receipt_id: int = Query(..., gt=0)):
+    try:
+        return list(receipts.find({"user_id": user_id, "receipt_id": receipt_id}, {'_id': False}))
     except Exception as e:
         return e
 
@@ -121,7 +121,10 @@ async def post_user_products(receipt: UserReceipt):
             return {"Status": "Error", "Comment": e}
     else:
         print('qwe')
-        return {"Status": "Error", "Comment": "There is receipt with this receipt_id"}
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="There is a receipt with this time",
+        )
 
 
 @router.put("/put_user_receipt")
@@ -142,13 +145,12 @@ async def put_user_products(receipt: UserReceipt):
 #     receipt_id: int
 
 
-@router.delete("/delete_user_receipt")
-async def delete_user_receipt(receipt: UserReceipt):
+@router.delete("/delete_user_receipt/")
+async def delete_user_receipt(user_id: int = Query(..., gt=0), receipt_id: int = Query(..., gt=0)):
 # async def delete_user_receipt(receipt: UserReceiptDelete):
-    print(receipt)
     try:
-        receipts.find_one_and_delete({"$and": [{"user_id": receipt.user_id}, {"receipt_id": receipt.receipt_id}]})
-        return {"Status": "OK", "Comment": f"User's receipt {receipt.receipt_id} has been deleted"}
+        receipts.find_one_and_delete({"$and": [{"user_id": user_id}, {"receipt_id": receipt_id}]})
+        return {"Status": "OK", "Comment": f"User's receipt {receipt_id} has been deleted"}
     except Exception as e:
         return {"Status": "Error", "Comment": e}
 

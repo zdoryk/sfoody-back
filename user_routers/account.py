@@ -93,15 +93,6 @@ async def put_user_currency(update_currency: UpdateCurrency):
         return e
 
 
-@router.put("/deactivate_an_account")
-async def deactivate_an_account(user_id: DeleteUser):
-    print(user_id)
-    users.delete_one({"user_id": user_id.user_id})
-    products.delete_one({"user_id": user_id.user_id})
-    receipts.delete_many({"user_id": user_id.user_id})
-    return user_id
-
-
 def create_json_response(data: dict, name) -> Response:
     print(data)
     json_data = json.dumps(data).encode('utf-8')
@@ -113,6 +104,15 @@ def create_json_response(data: dict, name) -> Response:
             'Content-Disposition': f'filename={name}.json'
         }
     )
+
+
+@router.delete("/deactivate_an_account/{user_id}")
+async def deactivate_an_account(user_id: int):
+    print(user_id)
+    users.delete_one({"user_id": user_id})
+    products.delete_one({"user_id": user_id})
+    receipts.delete_many({"user_id": user_id})
+    return user_id
 
 
 def create_csv_response(data, name) -> Response:

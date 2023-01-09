@@ -24,6 +24,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 
 async def get_authorized(security_scopes: SecurityScopes, request: Request,  token: str = Depends(oauth2_scheme)):
+    print(request.url.path.split('/')[-1])
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
     else:
@@ -55,8 +56,22 @@ async def get_authorized(security_scopes: SecurityScopes, request: Request,  tok
             if user_id != request_body['user_id'] and token_scope == 'user':
                 credentials_exception.detail = 'You provided user_id of another user'
                 raise credentials_exception
+        else:
+            id_from_path = request.url.path.split('/')[-1]
+            if id_from_path.isdigit():
+                if token_scope == 'user' and user_id != int(id_from_path):
+                    credentials_exception.detail = 'You provided user_id of another user'
+                    raise credentials_exception
+            else:
+                query = request.query_params
+                if query.items() and token_scope == 'user' and user_id != int(query.get("user_id")):
+                    credentials_exception.detail = 'You provided user_id of another user'
+                    raise credentials_exception
+
     except JWTError:
         raise credentials_exception
+    print(security_scopes.scopes)
+    print(token_scope)
     for scope in security_scopes.scopes:
         # print(f'{scope=}')
         if scope not in token_scope:

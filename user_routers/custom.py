@@ -29,25 +29,6 @@ router = APIRouter(
 )
 
 
-@router.get("/{user_id}", dependencies=[Security(get_authorized, scopes=['admin'])], tags=['admin'])
-# @router.get("/{user_id}", dependencies=[Depends(get_authorized)])
-async def get_all_user_data(user_id: int):
-    if products.find_one({"user_id": user_id}) is not None:
-        user_products = {"categories": products.find_one({"user_id": user_id}, {"_id": False})}
-        if receipts.find_one({"user_id": user_id}) is not None:
-            user_receipts = list(receipts.find({"user_id": user_id}, {"_id": False}))
-            user_products['receipts'] = user_receipts
-            user_products['new_user'] = False
-
-            print(f"User products = {user_products}\n")
-        else:
-            user_products['receipts'] = []
-            user_products['new_user'] = True
-        return user_products
-    else:
-        return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
-
-
 @router.get("/tree_map_chart/{user_id}", dependencies=[Depends(get_authorized)])
 async def tree_map_data(user_id: int):
     receipts_all = list(receipts.find({"user_id": user_id}, {"_id": False}))

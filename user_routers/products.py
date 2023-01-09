@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security, Query
 import pymongo.errors
 import json
 from pydantic import BaseModel
@@ -39,9 +39,9 @@ router = APIRouter(
 #     categories: List[UserCategory]
 
 # *** Only for admin
-@router.get("/", tags=['admin'])
-async def get_products_of_all_users():
-    return list(products.find({}, {'_id': False}))
+# @router.get("/", dependencies=[Security(get_authorized, scopes=['admin'])], tags=['admin'])
+# async def get_products_of_all_users():
+#     return list(products.find({}, {'_id': False}))
 
 
 @router.get("/{user_id}")
@@ -76,43 +76,39 @@ async def put_user_products(user_products: UserProducts):
 #     new_product_name: str
 
 
-@router.put("/update_user_product_category")
-async def put_user_category(replacement: UserReplaceCategory):
-    try:
-        # pipeline = [
-        #     {"$match": {"user_id": 1}},
-        #     {"$project": {"_id": 0, "Fruits": {"ico": 1, "color": 1}}}
-        # ]
-        # result = next(products.aggregate(pipeline))
-        # result[replacement.old_category_name]['ico'] = replacement.new_category_ico
-        # result[replacement.old_category_name]['color'] = replacement.new_category_color
-        # result[replacement.new_category_name] = result.pop(replacement.old_category_name)
-
-        result = products.update_one(
-            {"user_id": replacement.user_id, replacement.old_category_name: {"$exists": True}},
-            {
-                "$set": {
-                    replacement.new_category_name + ".color": replacement.new_category_color,
-                    replacement.new_category_name + ".ico": replacement.new_category_ico
-                }
-            }
-        )
-
-        if replacement.new_category_name != replacement.old_category_name:
-            result = products.update_one(
-                {"user_id": replacement.user_id},
-                {
-                    "$rename": {replacement.old_category_name: replacement.new_category_name},
-                }
-            )
-            return {f"{result.modified_count} records were updated, category_name was also modified"}
-        return {f"{result.modified_count} records were updated"}
-    except Exception as e:
-        return {"Error": f'{e} There is no record with this user_id: {replacement.user_id}'}
-
-
-# class UpdateUserProduct(UserReplaceCategory):
-#     old_product_name: str
+# @router.put("/update_user_product_category")
+# async def put_user_category(replacement: UserReplaceCategory):
+#     try:
+#         # pipeline = [
+#         #     {"$match": {"user_id": 1}},
+#         #     {"$project": {"_id": 0, "Fruits": {"ico": 1, "color": 1}}}
+#         # ]
+#         # result = next(products.aggregate(pipeline))
+#         # result[replacement.old_category_name]['ico'] = replacement.new_category_ico
+#         # result[replacement.old_category_name]['color'] = replacement.new_category_color
+#         # result[replacement.new_category_name] = result.pop(replacement.old_category_name)
+#
+#         result = products.update_one(
+#             {"user_id": replacement.user_id, replacement.old_category_name: {"$exists": True}},
+#             {
+#                 "$set": {
+#                     replacement.new_category_name + ".color": replacement.new_category_color,
+#                     replacement.new_category_name + ".ico": replacement.new_category_ico
+#                 }
+#             }
+#         )
+#
+#         if replacement.new_category_name != replacement.old_category_name:
+#             result = products.update_one(
+#                 {"user_id": replacement.user_id},
+#                 {
+#                     "$rename": {replacement.old_category_name: replacement.new_category_name},
+#                 }
+#             )
+#             return {f"{result.modified_count} records were updated, category_name was also modified"}
+#         return {f"{result.modified_count} records were updated"}
+#     except Exception as e:
+#         return {"Error": f'{e} There is no record with this user_id: {replacement.user_id}'}
 
 
 @router.put("/update_user_product")
@@ -168,7 +164,7 @@ async def post_new_user_category(new_category: NewCategoryRequest):
             'products': []
         }
         products.find_one_and_replace({'user_id': old['user_id']}, old)
-        return {"answer": "Created new category"}
+        return {"answer": "New category has been created"}
     except Exception as e:
         return {"answer": "Error", "comment": e}
 
@@ -184,11 +180,12 @@ async def post_new_user_product(new_product: NewProductRequest):
     try:
         # Verification about if there is a product with the same name and if the category name is written correctly is on
         # Front end side
+        print(new_product)
         products.update_one(
             {'user_id': new_product.user_id},
             {'$push': {f'{new_product.new_category_name}.products': new_product.new_product_name.capitalize()}}
         )
-        return {"answer": "New Product was created"}
+        return {"answer": "New Product has been created"}
     except Exception as e:
         return {"answer": "Error", "comment": e}
 
@@ -200,4 +197,26 @@ async def delete_all_user_products(user_id: int):
     else:
         return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
 
-# TODO: Path operation "delete only one product" needed
+
+@router.delete("/delete_user_product/")  # ?user_id=8&category_name=New_test_category&product_name=Very_new_test_product'
+async def delete_user_product(user_id: int = Query(..., gt=0), category_name: str = Query(...), product_name: str = Query(...)):
+    try:
+        result = products.update_one(
+            {"user_id": user_id, f"{category_name}.products": product_name},
+         {"$pull": {f"{category_name}.products": product_name}}
+        )
+        return {"detail": "Success"}
+    except Exception as e:
+        return e
+
+
+@router.delete("/delete_user_category/")  # ?user_id=8&category_name=New_test_category&product_name=Very_new_test_product'
+async def delete_user_category(user_id: int = Query(..., gt=0), category_name: str = Query(...)):
+    try:
+        result = products.update_one(
+            {"user_id": user_id},
+            {"$unset": {category_name: ""}}
+        )
+        return {"detail": result.modified_count}
+    except Exception as e:
+        return e

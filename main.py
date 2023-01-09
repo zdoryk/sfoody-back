@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from user_routers import products, token, receipts, custom, account
+from user_routers import products, token, receipts, custom, account, admin
 # from admin_routers import admin_custom
 app = FastAPI()
 
@@ -12,6 +12,7 @@ app.include_router(products.router)
 app.include_router(receipts.router)
 app.include_router(custom.router)
 app.include_router(account.router)
+app.include_router(admin.router)
 # app.include_router(
 #     admin.router,
 #     prefix="/admin",

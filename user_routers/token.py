@@ -11,7 +11,6 @@ from env_variables import pwd_context, ACCESS_TOKEN_EXPIRE_DAYS, ALGORITHM, SECR
 from auth import get_authorized
 from schema import Token, User, UserInDB, NewUser
 
-
 client = CLIENT
 # client = MongoClient()
 db = client['Sfoodie']
@@ -63,7 +62,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 def generate_token(email: str, user_id: int, scope: str, currency: str):
     access_token_expires = timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     access_token = create_access_token(
-        data={"sub": email, 'user_id': user_id, 'currency': currency, "scope": scope}, expires_delta=access_token_expires
+        data={"sub": email, 'user_id': user_id, 'currency': currency, "scope": scope},
+        expires_delta=access_token_expires
     )
     return access_token
 
@@ -80,7 +80,8 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
         )
     # response = JSONResponse(content={"access_token": generate_token(email=user.email, user_id=user.user_id), "token_type": "bearer"})
     response = JSONResponse(content={"access_token": generate_token(email=user.email, user_id=user.user_id
-                                                                    , scope=user.role, currency=user.currency), "token_type": "bearer"})
+                                                                    , scope=user.role, currency=user.currency),
+                                     "token_type": "bearer"})
     response.set_cookie(
         key="authentication-cookie",
         value=generate_token(email=user.email, user_id=user.user_id, scope=user.role, currency=user.currency),
@@ -127,21 +128,26 @@ async def register_new_user(form_data: OAuth2PasswordRequestForm = Depends()):
         products.insert_one(new_products)
 
         response = JSONResponse(
-            content={"access_token": generate_token(email=email, user_id=user_id, scope='user', currency="USD"), "token_type": "bearer"})
+            content={"access_token": generate_token(email=email, user_id=user_id, scope='user', currency="USD"),
+                     "token_type": "bearer"})
         response.set_cookie(
             key="authentication-cookie",
-            value=generate_token(email=email, user_id=user_id,scope='user', currency="USD"),
+            value=generate_token(email=email, user_id=user_id, scope='user', currency="USD"),
             httponly=True,
             secure=False,
         )
         return response
-
-
-@router.delete("/delete/{user_id}")
-async def delete_user(response: Response, user_id: int):
-    if users.find_one_and_delete({"user_id": user_id}) is not None:
-        response.status_code = 200
-        response.body = {"Comment": f"User with user_id: {user_id} has been deleted"}
-        return response
     else:
-        return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="There is a user with same email",
+        )
+
+# @router.delete("/delete/{user_id}")
+# async def delete_user(response: Response, user_id: int):
+#     if users.find_one_and_delete({"user_id": user_id}) is not None:
+#         response.status_code = 200
+#         response.body = {"Comment": f"User with user_id: {user_id} has been deleted"}
+#         return response
+#     else:
+#         return {"Status": "Error", "Comment": f"There is no user with user_id: {user_id}"}
